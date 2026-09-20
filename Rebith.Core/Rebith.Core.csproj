@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Motor de respaldos: sin dependencias externas, solo .NET Framework 4.8. -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <RootNamespace>Rebith.Core</RootNamespace>
+    <AssemblyName>Rebith.Core</AssemblyName>
+    <Version>2.0.0</Version>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+</Project>
