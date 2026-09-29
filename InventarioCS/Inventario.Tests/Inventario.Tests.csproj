@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pruebas del motor. Compila el mismo codigo de Inventario.Core para correrlo en
+       cualquier equipo con el SDK de .NET (dotnet run), usando la libsqlite3 del sistema. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>Inventario.Tests</RootNamespace>
+    <DefineConstants>$(DefineConstants);SQLITE_SISTEMA</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Inventario.Core\*.cs" Link="Core\%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inventario.Core", "Inventario.Core\Inventario.Core.csproj", "{5FC75DD9-6E41-446F-B1C8-A4B6A05514E7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inventario.App", "Inventario.App\Inventario.App.csproj", "{631A4A72-3474-40C4-9692-746D40BECB5A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inventario.Tests", "Inventario.Tests\Inventario.Tests.csproj", "{396226F6-3BE6-44EE-9A44-F816AF67DC99}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5FC75DD9-6E41-446F-B1C8-A4B6A05514E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5FC75DD9-6E41-446F-B1C8-A4B6A05514E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5FC75DD9-6E41-446F-B1C8-A4B6A05514E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5FC75DD9-6E41-446F-B1C8-A4B6A05514E7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{631A4A72-3474-40C4-9692-746D40BECB5A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{631A4A72-3474-40C4-9692-746D40BECB5A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{631A4A72-3474-40C4-9692-746D40BECB5A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{631A4A72-3474-40C4-9692-746D40BECB5A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{396226F6-3BE6-44EE-9A44-F816AF67DC99}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{396226F6-3BE6-44EE-9A44-F816AF67DC99}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{396226F6-3BE6-44EE-9A44-F816AF67DC99}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{396226F6-3BE6-44EE-9A44-F816AF67DC99}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
