@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Ventana del inventario por racks (WinForms, .NET Framework 4.8: ya viene en Windows 10/11). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>7.3</LangVersion>
+    <RootNamespace>Inventario.App</RootNamespace>
+    <AssemblyName>Inventario</AssemblyName>
+    <Version>1.0.0</Version>
+    <Product>Inventario por Racks</Product>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <Deterministic>true</Deterministic>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Inventario.Core\Inventario.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="App.config" />
+  </ItemGroup>
+</Project>

@@ -57,6 +57,8 @@ COLOR_PENDIENTE = "#D9D9D9"   # gris: sin escanear
 COLOR_ESCANEADO = "#A5D6A7"   # verde suave: escaneado, aun sin cruzar con Excel
 COLOR_SIN_MATCH = "#FFF176"   # amarillo: escaneado pero el Excel no trajo dato
 
+MAX_TRAYS_POR_RACK = 500      # tope de trays al crear un rack (antes era 50)
+
 
 # --------------------------------------------------------------------------
 # Capa de datos
@@ -1891,8 +1893,10 @@ class App(tk.Tk):
                     return
             try:
                 num_trays = int(entry_trays.get())
-                if num_trays < 1 or num_trays > 50:
-                    messagebox.showwarning("Inválido", "El número de trays debe estar entre 1 y 50.")
+                if num_trays < 1 or num_trays > MAX_TRAYS_POR_RACK:
+                    messagebox.showwarning(
+                        "Inválido", f"El número de trays debe estar entre 1 y {MAX_TRAYS_POR_RACK}."
+                    )
                     return
             except ValueError:
                 messagebox.showwarning("Inválido", "El número de trays debe ser un número.")
@@ -2013,16 +2017,14 @@ class App(tk.Tk):
         ws.cell(row=2, column=1, value="").font = negrita
         ws.cell(row=3, column=1, value="").font = negrita
 
-        col = 2  # columna B en adelante (columna A es TOTAL QTY del primer rack)
+        col = 2  # columna B en adelante (columna A lleva el TOTAL QTY de todo lo exportado)
         max_filas_items = 0
-        primer_rack = True
+
+        # antes solo se ponia el total del primer rack; ahora es la suma de todos
+        ws.cell(row=4, column=1, value=sum(m["total_qty"] for m in matrices))
 
         for matriz in matrices:
             nombre_rack = matriz["nombre"]
-            total_qty = matriz["total_qty"]
-            if primer_rack:
-                ws.cell(row=4, column=1, value=total_qty)
-                primer_rack = False
 
             for tray in matriz["trays"]:
                 ws.cell(row=1, column=col, value=nombre_rack).font = negrita
