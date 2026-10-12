@@ -1,0 +1,149 @@
+INSTALL PCB v2.1.0 - CAMBIOS DE VELOCIDAD (opciones 1 a 6)
+Guillermo Carrillo - 8 de octubre de 2026 (revisado el 9 de octubre)
+
+*** NO PEGAR ESTE Main.prg COMPLETO ***
+---------------------------------------
+Este Main.prg sale de la copia del proyecto de 2023 que hay en la carpeta
+TOP_Station_ST03_V03 de las actualizaciones. En esa copia la foto NG y el tiro NG aceptan
+solo 3 lugares; el programa que corre en la maquina ya maneja los 18 lugares NG. Por eso,
+el 8 de octubre, al pegar este archivo completo salio la 1631 al ir al NG.
+En el robot se pasan SOLO los cambios de la lista de abajo (seccion B, paso 6) al
+Main.prg que corre, o se manda ese Main.prg (C:\EpsonRC70\projects\TOP_Station_ST03_V03\
+Main.prg de la PC del RC+) para juntarlos y regresarlo listo. Photo_NG, Throw_NG y todo
+lo del NG no se tocan, ni en el robot ni en la PC.
+
+QUE CAMBIA
+----------
+Robot (Main.prg):
+  1. Toma (010), colocacion (011) y posicion (015) ya no leen ni reescriben robot1.pts
+     (eran unos 84 accesos al archivo por pallet).
+  2. Colocacion: se quito el Move que no se movia. La espera antes de revisar la presion
+     bajo de 0.1 a 0.05 s; la revision de la presion es la misma.
+  3. La foto del bolsillo (003) contesta tambien la posicion del robot.
+  4. Bajar el cilindro del gripper mientras el brazo llega. VIENE APAGADO (ver abajo).
+  5. (9 oct) I21 = 0 al recibir 004, 013 y 014. I21 es la herramienta de la foto; antes la
+     regresaba a 0 el 015. Sin el 015, el siguiente 015 de la calibracion o de un boton de
+     teach leeria la posicion con la herramienta del gripper en vez de la herramienta 0.
+PC (Alpha.exe):
+  3. Usa la posicion que trae la foto y ya no manda el 015. Si el robot tiene el programa
+     anterior, manda el 015 como siempre.
+  5. La foto se procesa mientras el robot va al escaner. Si la foto no sale normal (otro
+     modelo, PCB inclinada, fuera de rango, error), el robot regresa al bolsillo y la foto
+     se repite como siempre, con sus alarmas. Si pasa 3 veces seguidas, se apaga sola hasta
+     la siguiente inicializacion.
+  6. El flujo espera ~1 ms entre pasos en lugar de ~15 ms (reloj de Windows a 1 ms).
+No se hicieron la 7 (aceleracion, Calidad), la 8 (MES) ni la 9 (QR en la foto, Calidad).
+
+COMO CARGAR LA V05 SIN PERDER LA V03 (Epson RC+ 7.0)
+----------------------------------------------------
+La idea: dos proyectos en el RC+, TOP_Station_ST03_V03 (el de ahora, sin tocar) y
+TOP_Station_ST03_V05 (copia con el Main.prg nuevo). Se cambia de uno a otro abriendo el
+proyecto y dando Build. Los nombres de menu pueden variar un poco segun la version del RC+.
+
+A) Preparar (maquina detenida, RC+ conectado al controlador)
+ 1. Proyecto abierto: TOP_Station_ST03_V03 (debe decirlo la barra de titulo del RC+).
+ 2. Respaldo del controlador: Tools > Controller > Backup Controller. Guardarlo en una
+    carpeta con fecha (por ejemplo D:\Respaldos_Robot\Install_V03_<fecha>). Copiar tambien,
+    con el Explorador, la carpeta completa C:\EpsonRC70\projects\TOP_Station_ST03_V03.
+ 3. Puntos: el programa guarda puntos en el controlador (SavePoints). Para que la copia
+    lleve los puntos de hoy: Project > Synchronize (si el RC+ pregunta, quedarse con lo del
+    CONTROLADOR). Anotar de Tools > Robot Manager > Points los valores de P14, P54, P67 y
+    P122 para compararlos despues.
+
+B) Crear la V05
+ 4. Project > Save As... con el nombre TOP_Station_ST03_V05. El RC+ copia todo el proyecto
+    (programas, puntos, I/O, configuracion) a C:\EpsonRC70\projects\TOP_Station_ST03_V05 y
+    deja abierta la copia. La V03 queda igual.
+    Si no hay "Save As", usar Project > Copy y abrir la copia. NO copiar la carpeta con el
+    Explorador ni renombrar archivos a mano.
+ 5. Confirmar en la barra de titulo: TOP_Station_ST03_V05.
+ 6. En el Main.prg de la V05 (que es copia del que corre) hacer SOLO estos cambios. Lo que
+    se agrega esta en el Main.prg de esta carpeta, marcado "MOD@@"; copiarlo de ahi.
+    a) Arriba, junto a las demas Global:
+         Global Integer CalTomaGripper          (prueba de toma)
+         Global Boolean AntToma, AntColoca      (opcion 4)
+    b) En main, antes de "If TaskState(65) = 0 Then":   AntToma = False   y   AntColoca = False
+    c) En el Select S2$ de main:
+         - Case "004": poner  I21 = 0  antes de  Call ScanFeedDUT(6, R1)
+         - Case "013": poner  I21 = 0  antes de  Call BackSafe
+         - Case "014": poner  I21 = 0  antes de  Call VisionCalibration(R1, R3, R4, R5)
+         - Despues del Case "017": los Case "019", "020" y "021" (prueba de toma)
+    d) PhotoFeedDUT (003): cambiar  S11$ = "003_OKOK_a"; B1 = True  por las dos lineas
+         P99 = CurPos
+         S11$ = "003_" + Str$(CX(P99)) + "_" + Str$(CY(P99)) + "_" + Str$(CU(P99)) + "_OKOK_a"; B1 = True
+    e) TakeFeedDUT_1 (010): apostrofe (') al LoadPoints antes de  P45 = P(bli15)  y a los dos
+       SavePoints de esa funcion. Cambiar  Go P45 +Z(5) /L  por el bloque  If AntToma ... EndIf.
+    f) PutDischargeDUT_2 (011, NO la _1): apostrofe al LoadPoints y al SavePoints de alrededor
+       de  P46 = P(bli18) . Cambiar  Go P46 +Z(3) /L  por el bloque  If AntColoca ... EndIf.
+       Apostrofe a  Move P46 +Z(3) /L Till Sw(75 + R2) = On  y a  Wait 0.1 ; debajo  Wait 0.05 .
+    g) GetCurrentPosition_1 (015): apostrofe al LoadPoints y al SavePoints de alrededor de
+       P99 = CurPos . Lo demas igual.
+    h) Al final del archivo: funciones CalTomaIr, CalTomaJog y CalTomaSalir.
+    NO tocar Photo_NG, Throw_NG ni nada que no este en esta lista. NO copiar robot1.pts ni
+    otro archivo de esta carpeta.
+ 7. Project > Build. Si marca error en una linea con "!D95" (opcion 4), avisar.
+ 8. Robot Manager > Points: P14, P54, P67 y P122 deben ser iguales a los del paso 3.
+ 9. Arrancar el programa como siempre e Inicializar desde la PC.
+
+C) Regresar a la V03 (si algo sale mal)
+ 1. Detener la maquina y el programa del robot.
+ 2. Project > Open > TOP_Station_ST03_V03.
+ 3. Project > Build (manda la V03 al controlador). Arrancar como siempre e Inicializar.
+ 4. Si algo no queda igual que antes: Tools > Controller > Restore Controller con el
+    respaldo del paso 2.
+ Para volver a la V05: Project > Open > TOP_Station_ST03_V05, Build, arrancar, Inicializar.
+ Si se re-ensena un punto, queda solo en el proyecto abierto: hacerlo tambien en el otro.
+
+D) Primera prueba con la V05
+ - Un pallet completo con la PC 2.1.0, pasando al menos una pieza a NG: la foto NG y el
+   tiro NG deben funcionar igual que con la V03 (lugares arriba del 3 incluidos).
+ - Calibracion de vision despues de un ciclo: la posicion leida debe ser la de siempre.
+ - Prueba de toma (pestana de la calibracion): ir, cruceta y salir. Si la cruceta no mueve,
+   apuntar el numero de E1638 que sale en pantalla.
+ - Despues, la opcion 4 con la prueba lenta de abajo.
+
+COMO PRENDER LA OPCION 4 (cilindro mientras el brazo llega)
+-----------------------------------------------------------
+En la funcion main del Main.prg estan estas dos lineas:
+    AntToma = False      (toma, comando 010)
+    AntColoca = False    (colocacion, comando 011)
+Cambiar a True, Build y cargar. Prueba sugerida, con la mano en el paro de emergencia:
+  a) Solo AntToma = True, robot a velocidad baja, sin PCB: que el gripper no roce la charola.
+  b) Con PCB, primero lento y luego a velocidad normal. Revisar marcas en PCB y charola.
+  c) Despues AntColoca = True, igual: primero lento, revisar el housing y la PCB.
+El cilindro empieza a bajar al 95 % del viaje ("!D95", 3 lineas en la toma y 3 en la
+colocacion). Para empezar antes se cambia 95 por 90 en esas lineas, poco a poco.
+Si sale la 1607, 1609 o 1611 (el cilindro no llego abajo) o se ven marcas: regresar a False.
+Un roce que si deja llegar al sensor NO da alarma: hay que mirar las piezas.
+
+ARCHIVO DE OPCIONES DE LA PC
+----------------------------
+AlphaEXE\ModuleData\Velocidad.txt (se crea solo la primera vez, todo encendido):
+    foto_con_posicion=si
+    vision_en_paralelo=si
+    espera_corta=si
+Con "no" se apaga esa opcion. Se lee al abrir el programa y al Inicializar.
+espera_corta solo cambia al cerrar y abrir el programa.
+
+COMO VER QUE FUNCIONA
+---------------------
+Log de eventos (D:\EVMS\TP\EVENTOS\Eventos_*.txt):
+  - Al arrancar: "Velocidad v2.1.0: foto con posicion SI, vision en paralelo SI,
+    espera corta SI (reloj de Windows a 1 ms)".
+  - "Vueltas por segundo: flujo ..." al minuto y cada 10 minutos. Antes daba unas 60;
+    con la espera corta deben ser varios cientos.
+  - "vision en paralelo, <motivo>; el robot regresa y la foto se repite como siempre":
+    una foto que se repitio.
+  - "Vision en paralelo apagada hasta la siguiente inicializacion": 3 repetidas seguidas.
+Log de produccion (D:\EVMS\TP\LOG\<EQPID>_NA_<fecha>_Production.csv): en produccion ya
+no deben salir comandos 015.
+Tablero: tiempo de ciclo por pallet.
+
+COMO REGRESARSE
+---------------
+PC: abrir el programa de la carpeta 1.0.6.7.6 (o copiar su Alpha.exe).
+Robot: abrir el proyecto TOP_Station_ST03_V03 y Build (seccion C de arriba).
+Mezcladas tambien funcionan:
+  - PC 2.1.0 con el robot anterior: la foto no trae posicion y se manda el 015 como antes.
+  - PC anterior con el robot 2.1.0: lee la respuesta de la foto como OK y manda el 015.
+  - La pestana "Prueba de toma" solo funciona con la V05 (la V03 no tiene 019, 020 y 021).

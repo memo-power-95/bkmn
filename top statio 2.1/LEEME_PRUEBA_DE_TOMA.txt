@@ -1,0 +1,39 @@
+PRUEBA DE TOMA - programa del robot (Main.prg) para la Install PCB v1.0.6.7.6
+Guillermo Carrillo - 7 de octubre de 2026
+
+CAMBIO DE LA 6.7.6 (si ya cargaron el Main.prg de la 6.7.4)
+  Solo cambio la funcion CalTomaJog (comando 020, la cruceta de la prueba de toma).
+  En la 6.7.4 movia con Move (linea recta a 50 mm/s) y el robot no contestaba: la pantalla
+  esperaba y decia que el robot no hizo el movimiento. Ahora mueve con Go despacio, igual que
+  la cruceta de la camara (014), que si funciona. Y si el controlador da un error al moverse,
+  contesta 020_<numero>_E1638_a: la pantalla muestra ese numero en lugar de quedarse esperando.
+  Para cargarlo basta con reemplazar la funcion CalTomaJog completa (de "Function CalTomaJog"
+  hasta su "Fend"). Lo demas del Main.prg es igual al de la 6.7.4.
+
+QUE SE AGREGO EN LA 6.7.4 (nada del programa original se cambio, solo lineas marcadas MOD@@):
+  1) Variable global, junto a las demas:
+       Global Integer CalTomaGripper
+  2) En el Select S2$ del ciclo principal, despues del Case "017":
+       Case "019"  -> Call CalTomaIr(13, R1, R2, R3, R4, R5)
+       Case "020"  -> Call CalTomaJog(R3, R4, R5)
+       Case "021"  -> Call CalTomaSalir
+  3) Al final del archivo: funciones CalTomaIr, CalTomaJog y CalTomaSalir.
+  Usa el punto P47 (no existia en robot1.pts).
+
+QUE HACEN:
+  019  Igual que la toma (010) hasta ANTES de bajar a la pieza: va 5 mm arriba del punto de toma,
+       baja el cilindro del gripper y se queda. No baja a la pieza, no cierra, no toma.
+  020  Corrimiento total X/Y/U desde ese punto, a la misma altura, despacio (Go al 10 %).
+       Maximo 3 mm / 3 grados.
+  021  Sube el gripper.
+
+COMO CARGARLO:
+  1) Respaldar el proyecto que tiene el controlador (copia completa desde el Epson RC+).
+  2) Comparar el Main.prg del controlador contra el de "install pcb v1.0.6.7.4\TOP_Station_ST03_V03".
+     Si son iguales, se puede usar este Main.prg completo.
+     Si son DISTINTOS, no reemplazar el archivo: copiar solo la funcion CalTomaJog nueva.
+  3) Build en el RC+, revisar que no haya errores y cargar al controlador.
+  4) Primera prueba: un solo bolsillo, paso de 0.05 mm, la mano cerca del paro de emergencia.
+
+Si el robot todavia tiene el programa viejo, el 020 sigue sin contestar y la pantalla lo dice.
+Si contesta E1638, apuntar el numero que sale en la pantalla (es el error del controlador).

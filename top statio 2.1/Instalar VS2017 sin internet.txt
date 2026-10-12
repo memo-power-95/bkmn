@@ -1,0 +1,45 @@
+VISUAL STUDIO COMMUNITY 2017 - INSTALACION SIN INTERNET (layout)
+================================================================
+Carga: Desarrollo de escritorio .NET (C# / WinForms), la que usa el Alpha.
+Cambia la letra E: por la letra que tome la USB en cada PC.
+
+
+PASO 1 - EN LA PC CON INTERNET
+------------------------------
+1) Descargar el bootstrapper (solo de Microsoft):
+   https://aka.ms/vs/15/release/vs_community.exe
+
+2) Revisar que este firmado: clic derecho > Propiedades > Firmas digitales
+   > debe decir "Microsoft Corporation".
+
+3) Abrir CMD como administrador en la carpeta donde se descargo y correr:
+
+vs_community.exe --layout C:\VS2017Offline --add Microsoft.VisualStudio.Workload.ManagedDesktop --includeRecommended --lang es-ES
+
+   (Para ingles cambiar es-ES por en-US. Esperar a que termine; son varios GB.)
+
+4) Copiar la carpeta C:\VS2017Offline COMPLETA a la USB.
+
+
+PASO 2 - EN LA PC SIN INTERNET (CMD como administrador)
+-------------------------------------------------------
+5) Instalar los certificados:
+
+certutil.exe -addstore -f "Root" "E:\VS2017Offline\certificates\manifestRootCertificate.cer"
+certutil.exe -addstore -f "Root" "E:\VS2017Offline\certificates\manifestCounterSignRootCertificate.cer"
+
+6) Instalar Visual Studio sin buscar en internet:
+
+E:\VS2017Offline\vs_community.exe --noweb
+
+7) En el instalador dejar marcada solo "Desarrollo de escritorio de .NET".
+   No agregar otras cargas: no estan en la USB y la instalacion fallaria.
+
+
+NOTAS
+-----
+- Si el paso 5 dice que no encuentra un .cer, revisar los nombres dentro de
+  E:\VS2017Offline\certificates\ y usar los que aparezcan ahi.
+- Community pide iniciar sesion con cuenta Microsoft despues del periodo de
+  prueba (requiere internet). Confirmar con IT el tema de licencia.
+- Si solo se necesita compilar: compilar en la laptop y pasar solo el Alpha.exe.
