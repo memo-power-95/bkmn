@@ -1,0 +1,150 @@
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
+using static Alpha.FunctionForms.LogForm;
+
+namespace Alpha.Classes
+{
+    //MOD@@ Guillermo Carrillo - v2.1.0 opciones de velocidad de la Screw (EXPERIMENTAL)
+    //
+    //  Ninguna de las tres cambia un movimiento, un cilindro, el atornillado, el pallet ni el MES.
+    //  Se apagan sin instalar otra version en AlphaEXE\ModuleData\Velocidad.txt (se crea solo la
+    //  primera vez, con la 1 y la 2 encendidas y la 3 apagada):
+    //    espera_corta            opcion 1: reloj de Windows a 1 ms, para que el flujo no espere ~15 ms
+    //                            entre pasos. Se aplica al abrir el programa.
+    //    guardar_fuera_del_flujo opcion 2: el contador de tornillos se guarda a disco al terminar el
+    //                            pallet (no en cada tornillo) y las fotos BMP en segundo plano.
+    //    foto_en_paralelo        opcion 3: despues de tomar la foto de una pieza, el eje ya va a la
+    //                            siguiente al TERMINAR la vision (v2.1.0.1). Mismo recorrido, mismas alarmas.
+    //  El archivo se lee al abrir el programa y en cada inicializacion. Todo queda en el log de
+    //  produccion con el texto "Velocidad v2.1.0".
+    public static class VelocidadV2
+    {
+        public static bool EsperaCorta { get; private set; } = true;
+        public static bool GuardarFueraDelFlujo { get; private set; } = true;
+        public static bool FotoEnParalelo { get; private set; } = false;   // v2.1.0.1: apagada de fabrica
+
+        static bool relojPedido = false;
+        static string problema = "";
+
+        [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod")]
+        static extern uint TimeBeginPeriod(uint milisegundos);
+
+        [DllImport("winmm.dll", EntryPoint = "timeEndPeriod")]
+        static extern uint TimeEndPeriod(uint milisegundos);
+
+        const string PLANTILLA =
+            "# Screw v2.1.0 EXPERIMENTAL - opciones de velocidad (si = encendida, no = apagada)\r\n" +
+            "# Se lee al abrir el programa y al Inicializar. espera_corta cambia hasta reabrir el programa.\r\n" +
+            "# Ninguna cambia movimientos, cilindros, el atornillado, el pallet ni el MES.\r\n" +
+            "\r\n" +
+            "# Opcion 1: el flujo espera ~1 ms entre pasos en lugar de ~15 ms.\r\n" +
+            "espera_corta=si\r\n" +
+            "\r\n" +
+            "# Opcion 2: el contador de tornillos se guarda al terminar el pallet y las fotos BMP en segundo plano.\r\n" +
+            "guardar_fuera_del_flujo=si\r\n" +
+            "\r\n" +
+            "# Opcion 3 (v2.1.0.1, a prueba): el eje va a la siguiente pieza al terminar la vision. Apagada de fabrica.\r\n" +
+            "foto_en_paralelo=no\r\n";
+
+        static string Archivo
+        {
+            get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ModuleData", "Velocidad.txt"); }
+        }
+
+        //  Lee el archivo sin escribir en el log (al abrir el programa el log todavia no arranca).
+        //  Si no existe lo crea; si no se puede leer, quedan como de fabrica (1 y 2 si, 3 no).
+        public static void LeerArchivo()
+        {
+            bool espera = true, guardar = true, foto = false;   // v2.1.0.1: la 3 solo si el archivo dice si
+            problema = "";
+            try
+            {
+                if (!File.Exists(Archivo))
+                {
+                    File.WriteAllText(Archivo, PLANTILLA, Encoding.ASCII);
+                }
+                foreach (string renglon in File.ReadAllLines(Archivo))
+                {
+                    string linea = renglon;
+                    int gato = linea.IndexOf('#');
+                    if (gato >= 0) linea = linea.Substring(0, gato);
+                    int igual = linea.IndexOf('=');
+                    if (igual <= 0) continue;
+                    string clave = linea.Substring(0, igual).Trim().ToLowerInvariant();
+                    string valor = linea.Substring(igual + 1).Trim().ToLowerInvariant();
+                    bool si = valor.StartsWith("s") || valor == "1" || valor == "true";
+                    if (clave == "espera_corta") espera = si;
+                    else if (clave == "guardar_fuera_del_flujo") guardar = si;
+                    else if (clave == "foto_en_paralelo") foto = si;
+                }
+            }
+            catch (Exception ex)
+            {
+                problema = " (no se pudo leer " + Archivo + ": " + ex.Message + "; quedan como de fabrica: 1 y 2 si, 3 no)";
+            }
+            EsperaCorta = espera;
+            GuardarFueraDelFlujo = guardar;
+            FotoEnParalelo = foto;
+        }
+
+        //  Lee el archivo y anota en el log lo que quedo.
+        public static void Leer()
+        {
+            LeerArchivo();
+            Anotar();
+        }
+
+        public static void Anotar()
+        {
+            Log("Velocidad v2.1.0: espera corta " + SiNo(EsperaCorta)
+                + (relojPedido ? " (reloj de Windows a 1 ms)" : "")
+                + ", guardar fuera del flujo " + SiNo(GuardarFueraDelFlujo)
+                + ", foto en paralelo " + SiNo(FotoEnParalelo) + problema);
+        }
+
+        public static void Log(string texto)
+        {
+            try
+            {
+                if (MiddleLayer.LogF != null) MiddleLayer.LogF.AddLog(LogType.Production, texto, true);
+            }
+            catch
+            {
+            }
+        }
+
+        //  Opcion 1. Solo se pide una vez, al abrir el programa; Windows lo regresa solo al cerrarlo.
+        public static void AplicarEsperaCorta()
+        {
+            if (!EsperaCorta || relojPedido) return;
+            try
+            {
+                relojPedido = TimeBeginPeriod(1) == 0;
+            }
+            catch
+            {
+                relojPedido = false;
+            }
+        }
+
+        public static void QuitarEsperaCorta()
+        {
+            if (!relojPedido) return;
+            try
+            {
+                TimeEndPeriod(1);
+            }
+            catch
+            {
+            }
+            relojPedido = false;
+        }
+
+        static string SiNo(bool valor)
+        {
+            return valor ? "SI" : "NO";
+        }
+    }
+}
