@@ -5,6 +5,7 @@
 '  2. Velocidad: Message_analyze espera 0.01 s en lugar de 0.1 s por comando (igual que la Install).
 '  3. Como la Bottom: la colocacion (011 y 070) ya no hace los dos Move que no movian el robot.
 '  4 y 5. Esperas ajustables (EsperaSoltar, EsperaQuieto). De fabrica, iguales que antes.
+'  6. Correccion de colocacion por lugar del pallet (CorrColocaX/Y/Z, 1-12) para el 011. De fabrica en 0.
 '  Correccion: 17 errores contestaban sin codigo ("_E1629_a" en vez de "011_E1629_a"); la PC no los
 '     reconocia y se quedaba esperando. Ahora contestan con su codigo.
 '  Correccion: la bandera del gripper 3 en la toma revisaba R3 (vision X) en lugar de R2 (gripper).
@@ -18,6 +19,7 @@ Global Preserve Integer I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, 
 Global Preserve Real R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13, R14, R15, R16, R17, R18, R19, R20(20), R21
 Global Preserve String S1$, S2$, S3$(15), S4$, S5$, S6$, S7$, S8$, S9$, S10$, S11$, S12$, S13$, S14$, S15$, S16$, S17$, S18$, S19$, S20$(30)
 Global Real EsperaSoltar, EsperaQuieto   'MOD@@ v2.2 opciones 4 y 5 (se fijan en main)
+Global Real CorrColocaX(12), CorrColocaY(12), CorrColocaZ(12)   'MOD@@ v2.2 opcion 6: correccion por lugar (mm), 011
 
 Function main
 ''''''''''''''''''''''''''''''' TOP_TLA_Station_1 '''''''''''''''''''''''''''''''''''''
@@ -53,6 +55,23 @@ EsperaSoltar = 0.05
 EsperaQuieto = 0.1
 If EsperaSoltar < 0 Or EsperaSoltar > 1 Then EsperaSoltar = 0.05   'fuera de rango: como antes
 If EsperaQuieto < 0 Or EsperaQuieto > 1 Then EsperaQuieto = 0.1
+
+'MOD@@ Guillermo Carrillo - v2.2 opcion 6: correccion de colocacion por lugar del pallet (1-12), en mm, solo en el 011 (una por una).
+'  0 = como antes. Para corregir un lugar, cambiar su valor en pasos de 0.1 mm, Build e Inicializar.
+'  Probar el signo con un pallet: si el housing se fue al otro lado, el signo es el contrario.
+'  Ejemplo: CorrColocaX(5) = 0.1 mueve el lugar 5 0.1 mm hacia +X del robot.
+CorrColocaX(1) = 0; CorrColocaY(1) = 0; CorrColocaZ(1) = 0
+CorrColocaX(2) = 0; CorrColocaY(2) = 0; CorrColocaZ(2) = 0
+CorrColocaX(3) = 0; CorrColocaY(3) = 0; CorrColocaZ(3) = 0
+CorrColocaX(4) = 0; CorrColocaY(4) = 0; CorrColocaZ(4) = 0
+CorrColocaX(5) = 0; CorrColocaY(5) = 0; CorrColocaZ(5) = 0
+CorrColocaX(6) = 0; CorrColocaY(6) = 0; CorrColocaZ(6) = 0
+CorrColocaX(7) = 0; CorrColocaY(7) = 0; CorrColocaZ(7) = 0
+CorrColocaX(8) = 0; CorrColocaY(8) = 0; CorrColocaZ(8) = 0
+CorrColocaX(9) = 0; CorrColocaY(9) = 0; CorrColocaZ(9) = 0
+CorrColocaX(10) = 0; CorrColocaY(10) = 0; CorrColocaZ(10) = 0
+CorrColocaX(11) = 0; CorrColocaY(11) = 0; CorrColocaZ(11) = 0
+CorrColocaX(12) = 0; CorrColocaY(12) = 0; CorrColocaZ(12) = 0
 
 '---Check the status and start of background task no. 65  ----
 If TaskState(65) = 0 Then
@@ -1090,6 +1109,13 @@ Exit Function
   EndIf
 
 '---Switch tool coordinates---
+'MOD@@ Guillermo Carrillo - v2.2 opcion 6: correccion por lugar (va despues de validar el lugar 1-12 y el gripper 1-3)
+CX(P46) = CX(P46) + CorrColocaX(bli19)
+CY(P46) = CY(P46) + CorrColocaY(bli19)
+CZ(P46) = CZ(P46) + CorrColocaZ(bli19)
+If CorrColocaX(bli19) <> 0 Or CorrColocaY(bli19) <> 0 Or CorrColocaZ(bli19) <> 0 Then
+  Print "Correccion del lugar "; Print bli19; Print "X="; Print CorrColocaX(bli19); Print "Y="; Print CorrColocaY(bli19); Print "Z="; Print CorrColocaZ(bli19)
+EndIf
   Tool 0
   
 Hand P46, Lefty
