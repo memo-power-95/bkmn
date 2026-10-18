@@ -1,4 +1,4 @@
-﻿using AcuraLibrary.Forms;
+using AcuraLibrary.Forms;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -112,6 +112,7 @@ namespace Alpha._0.ModuleForms
             //pdfProcess = MiddleLayer.ProcessF.fnGetDataForm("");
             InitMotorControl(ref DownConveyorAutoFlow, panel_MoveFlowModule);
             InitUpMotorControl(ref UpConveyorAutoFlow, panel_UpFlowModule);
+            CrearConveyorAutomatico();   //MOD@@ Guillermo Carrillo: opcion Conveyor automatico (conveyor inferior)
         }
         /// <summary>
         /// Initialize mod control (初始化模组控制)
@@ -1104,6 +1105,106 @@ namespace Alpha._0.ModuleForms
         {
 
         }
+
+        #region MOD@@ Guillermo Carrillo - Conveyor automatico (conveyor inferior)
+        // Con la casilla "Conveyor automatico" activada y la maquina corriendo en AUTO, cada 30 s prende
+        // DownCvyMtFwd hasta 5 s, o hasta que un carrier llegue a InPlace o a Discharge.
+        // Protecciones: no arranca si hay un carrier en InPlace o en Discharge (no lo empuja a la
+        // siguiente maquina), ni con alarma del motor, ni con la maquina detenida, ni mientras el
+        // flujo del conveyor inferior lo esta moviendo. La casilla arranca apagada al abrir el programa.
+        private const int CvyAutoIntervaloMs = 30000;   // cada cuanto se prende (ms)
+        private const int CvyAutoPulsoMs = 5000;        // tiempo maximo encendido (ms)
+        private CheckBox chkCvyAutomatico;
+        private System.Windows.Forms.Timer tmrCvyAutomatico;
+        private readonly System.Diagnostics.Stopwatch swCvyAuto = new System.Diagnostics.Stopwatch();
+        private bool cvyAutoPulsoActivo = false;
+
+        private void CrearConveyorAutomatico()
+        {
+            chkCvyAutomatico = new CheckBox();
+            chkCvyAutomatico.Name = "chkCvyAutomatico";
+            chkCvyAutomatico.Appearance = System.Windows.Forms.Appearance.Button;
+            chkCvyAutomatico.Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point, ((byte)(0)));
+            chkCvyAutomatico.Location = new Point(110, 463);   // debajo de DownCvyMotorAlarm
+            chkCvyAutomatico.Size = new Size(250, 40);
+            chkCvyAutomatico.TextAlign = ContentAlignment.MiddleLeft;
+            chkCvyAutomatico.CheckedChanged += ChkCvyAutomatico_CheckedChanged;
+            panel10.Controls.Add(chkCvyAutomatico);
+            PintarCvyAutomatico();
+
+            tmrCvyAutomatico = new System.Windows.Forms.Timer();   // corre en la pantalla, no frena el flujo
+            tmrCvyAutomatico.Interval = 200;
+            tmrCvyAutomatico.Tick += TmrCvyAutomatico_Tick;
+            tmrCvyAutomatico.Start();
+        }
+
+        private void PintarCvyAutomatico()
+        {
+            chkCvyAutomatico.Text = "Conveyor automatico: " + (chkCvyAutomatico.Checked ? "ON" : "OFF");
+            chkCvyAutomatico.BackColor = chkCvyAutomatico.Checked ? Color.LightGreen : Color.White;
+        }
+
+        private void ChkCvyAutomatico_CheckedChanged(object sender, EventArgs e)
+        {
+            PintarCvyAutomatico();
+            if (!chkCvyAutomatico.Checked && cvyAutoPulsoActivo)
+                TerminarPulsoCvyAuto("se apago la casilla");
+            swCvyAuto.Restart();   // el primer encendido es 30 s despues de activarla
+            MiddleLayer.LogF.AddLog(LogType.Production, "Conveyor automatico: " + (chkCvyAutomatico.Checked ? "activado" : "desactivado"), true);
+        }
+
+        private void TmrCvyAutomatico_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                bool permitido = chkCvyAutomatico.Checked && SysPara.SystemRun && SysPara.SystemMode == RunMode.AUTO
+                                 && !IB_DownCvyMotorAlarm.On();   // solo en automatico (no en HOME/inicializacion)
+                bool hayCarrier = IB_DownCvyInPlace.On() || IB_DownCvyDischargeSensor.On();
+                bool flujoMoviendo = downConveyorMtRevStare == DownConveyorMtRevStare.Start;
+
+                if (cvyAutoPulsoActivo)
+                {
+                    if (!permitido)
+                        TerminarPulsoCvyAuto("maquina detenida, casilla apagada o alarma del motor");
+                    else if (hayCarrier)
+                        TerminarPulsoCvyAuto("llego un carrier a InPlace o Discharge");
+                    else if (swCvyAuto.ElapsedMilliseconds >= CvyAutoPulsoMs)
+                        TerminarPulsoCvyAuto("tiempo cumplido");
+                    return;
+                }
+
+                if (!permitido || hayCarrier || flujoMoviendo)
+                {
+                    swCvyAuto.Restart();   // la cuenta de 30 s empieza cuando se puede mover
+                    return;
+                }
+                if (swCvyAuto.ElapsedMilliseconds < CvyAutoIntervaloMs)
+                    return;
+
+                OB_DownCvyMtFwd.On();
+                cvyAutoPulsoActivo = true;
+                swCvyAuto.Restart();
+                MiddleLayer.LogF.AddLog(LogType.Production, "Conveyor automatico: forward encendido", true);
+            }
+            catch (Exception ex)
+            {
+                try { OB_DownCvyMtFwd.Off(); } catch { }
+                cvyAutoPulsoActivo = false;
+                chkCvyAutomatico.Checked = false;   // se apaga sola si algo falla
+                MiddleLayer.LogF.AddLog(LogType.Production, "Conveyor automatico: error, se desactivo: " + ex.Message, true);
+            }
+        }
+
+        private void TerminarPulsoCvyAuto(string motivo)
+        {
+            // si el flujo del conveyor inferior lo esta usando, no se le apaga
+            if (downConveyorMtRevStare != DownConveyorMtRevStare.Start)
+                OB_DownCvyMtFwd.Off();
+            cvyAutoPulsoActivo = false;
+            swCvyAuto.Restart();
+            MiddleLayer.LogF.AddLog(LogType.Production, "Conveyor automatico: forward apagado (" + motivo + ")", true);
+        }
+        #endregion
 
         #region bottom conveyor auto flow
 
