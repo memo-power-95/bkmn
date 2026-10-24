@@ -1,12 +1,18 @@
+'MOD@@ Guillermo Carrillo - v2.2 Install PCB LINEA 2 (sobre la V05 que ya funcionaba)
+'  Archivo solo con caracteres ASCII y fin de linea de Windows (CRLF): los comentarios en chino
+'  que venian mal codificados se cambiaron por (mm), (%) y !.
+'  Correccion: 7 errores contestaban sin codigo; ahora contestan con su codigo (la PC ya no se queda esperando).
+'  Correccion: al colocar bien (011 y 020) regresa AccelS 15000, 8000 (dejaba 1000, 1000).
+'  6, 7 y 8: AccelFoto, AccelTrabajo y TomaDirecta, como en la linea 1. De fabrica quedan IGUAL que antes.
+
 'MOD@@ Guillermo Carrillo - v2.1.0 (Install PCB): cambios para bajar el tiempo de ciclo
+'  Base: Main que corre en la maquina (NG de 18 lugares) + prueba de toma v1.0.6.7.6.
 '  1. Toma (010), colocacion (011) y posicion (015) ya no leen ni reescriben robot1.pts.
 '  2. Colocacion: sin el Move que no movia; la espera antes de revisar la presion bajo de 0.1 a 0.05 s.
 '  3. La foto (003) contesta tambien la posicion del robot (la PC ya no manda el 015).
 '  4. Bajar el cilindro mientras el brazo llega (AntToma / AntColoca). APAGADO de fabrica.
-'  5. I21 = 0 al recibir 004, 013 y 014: sin el 015 nadie la regresaba a 0 (lectura de posicion de la
-'     calibracion y de los botones de teach). El 015 que sigue a la foto la sigue usando igual.
-'  Hecho el 10 de octubre de 2026 SOBRE EL Main2.prg DE LINEA (NG de 18 lugares + prueba de toma 6.7.6).
-'  Todo lo demas, incluido el NG, es igual a ese programa. Ver LEEME_VELOCIDAD_2.1.0.txt.
+'  5. I21 = 0 al recibir 004, 013 y 014.
+'  NG (Photo_NG_3 / Throw_NG_3, 18 lugares) y el 020 del proveedor: SIN CAMBIOS.
 
 '--- global variable definition  ---
        'S3$(0)        function code   
@@ -24,6 +30,8 @@ Global Preserve Real R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13, R14
 Global Preserve String S1$, S2$, S3$(15), S4$, S5$, S6$, S7$, S8$, S9$, S10$, S11$, S12$, S13$, S14$, S15$, S16$, S17$, S18$, S19$, S20$(30)
 Global Integer CalTomaGripper   'MOD@@ Guillermo Carrillo - v1.0.6.7.6 prueba de toma (gripper abajo, 0 = ninguno)
 Global Boolean AntToma, AntColoca   'MOD@@ Guillermo Carrillo - v2.1.0 opcion 4 (se fijan en main)
+Global Integer AccelFoto, AccelTrabajo   'MOD@@ v2.2 opciones 6 y 7 (se fijan en main)
+Global Boolean TomaDirecta   'MOD@@ v2.2 opcion 8 (se fija en main)
 
 Function main
 ''''''''''''''''''''''''''''''' TOP_TLA_Station_3  '''''''''''''''''''''''''''''''''''''
@@ -39,23 +47,33 @@ Tool 0
 Weight 5                      'load setting 
 Motor On                      'Power up the motor 
 'Fine 3, 3, 3, 3              '4 axis positioning accuracy setting 
-FineDist 0.1                  'Target point positioning accuracy setting£¨mm£©
+FineDist 0.1                  'Target point positioning accuracy setting(mm)
 Power High                    'High power mode setting 
-Speed 100                     'Internal speed setting  £¨£¥£©  
-SpeedS 2000                   'Linear speed setting    £¨mm/sec£©
+Speed 100                     'Internal speed setting  (%)  
+SpeedS 2000                   'Linear speed setting    (mm/sec)
 SpeedFactor I1                'External speed setting (%) 
 Accel 100, 100                'Acceleration and deceleration ratio setting (%)  
 AccelS 15000, 8000            'Acceleration and deceleration value setting (mm/sec2)  
 PTPBoost 75, 75, 75           'Nudge parameter setting   
 'LimitTorque 20, 20, 20, 20   'Torque limit setting 
 
+'--- Detect the status and start of background task No. 65  ----
 'MOD@@ Guillermo Carrillo - v2.1.0 opcion 4: bajar el cilindro del gripper mientras el brazo llega
-'  (empieza al 95 % del viaje). APAGADO de fabrica. Para probarlo: cambiar a True, Build y cargar
-'  (LEEME_VELOCIDAD_2.1.0.txt). AntToma = en la toma (010); AntColoca = en la colocacion (011).
+'  (empieza al 95 % del viaje). APAGADO de fabrica. Para probarlo: cambiar a True, Build y cargar.
 AntToma = False
 AntColoca = False
 
-'--- Detect the status and start of background task No. 65  ----
+'MOD@@ Guillermo Carrillo - v2.2 opciones 6, 7 y 8. Con estos valores la maquina queda IGUAL que antes.
+'  Para probar, cambiar UNO a la vez, Build e Inicializar:
+'  AccelFoto: 70 = como antes. Probar 85 y luego 100. Si la vision empieza a fallar (foto movida), regresar.
+'  AccelTrabajo: 70 = como antes (la foto la dejaba en 70). Probar 100. Si la toma sale descentrada, 85.
+'  TomaDirecta: False = como antes. True = como la Top Assy (sin acercamiento de 5 mm ni bajada lenta).
+AccelFoto = 70
+AccelTrabajo = 70
+TomaDirecta = False
+If AccelFoto < 10 Or AccelFoto > 100 Then AccelFoto = 70        'valor fuera de rango: como antes
+If AccelTrabajo < 10 Or AccelTrabajo > 100 Then AccelTrabajo = 70
+
 If TaskState(65) = 0 Then
 	Xqt 65, bgmain
 EndIf
@@ -358,9 +376,9 @@ Function TEST_GO
 	'Fine 3, 3, 3, 3              '4 axis positioning accuracy setting 
 	FineDist 0.1                  'Target point positioning accuracy setting
 	Power High                    'High power mode setting 
-	Speed 100                     'Internal speed setting  £¨£¥£©  
-	SpeedS 2000                   'Linear speed setting    £¨mm/sec£©
-	SpeedFactor I1                'External speed setting (%) £¨£¥£©
+	Speed 100                     'Internal speed setting  (%)  
+	SpeedS 2000                   'Linear speed setting    (mm/sec)
+	SpeedFactor I1                'External speed setting (%) (%)
 	Accel 100, 100                'Acceleration and deceleration ratio setting (%)  
 	AccelS 15000, 8000            'Acceleration and deceleration value setting (mm/sec2)  
 	PTPBoost 75, 75, 75           'Nudge parameter setting   
@@ -411,7 +429,7 @@ Function Init
 
 '--- initialize boolean variable ---  
 B1 = False; B2 = False; B3 = False; B4 = False; B17 = True; B19 = False; B20 = True; B21 = True; B22 = True
-Print "Init again£¡£¡£¡£¡£¡£¡£¡£¡£¡"
+Print "Init again!!!!!!!!!"
 
 '--- Initialize integer variables ---  
 I1 = 30; I2 = 0; I3 = 0; I4 = 0; I5 = 10; I6 = 0; I7 = 0; I20 = 0; I21 = 0
@@ -541,14 +559,13 @@ Tool to_2
  R11 = -32; I3 = bli04; I8 = 3 'Array X Spacing; Array Y Spacing; Array Position Index; Array Rows (X direction)
 Call PalletOffset
 Hand P(bli03), Lefty
-Accel 70, 70
+Accel AccelFoto, AccelFoto   'MOD@@ Guillermo Carrillo - v2.2 opcion 6 (antes: Accel 70, 70)
 Go P(bli03) +X(R12) +Y(R13) /L
 
-'MOD@@ Guillermo Carrillo - v2.1.0 opcion 3: contesta tambien la posicion, igual que el 015
-'  (misma herramienta: Tool to_2, que es I21). Asi la PC no tiene que mandar el 015.
+S2$ = ""
+'MOD@@ Guillermo Carrillo - v2.1.0 opcion 3: contesta tambien la posicion, igual que el 015.
 '  Una PC con version anterior lo sigue leyendo como OK.
 P99 = CurPos
-S2$ = ""
 S11$ = "003_" + Str$(CX(P99)) + "_" + Str$(CY(P99)) + "_" + Str$(CU(P99)) + "_OKOK_a"; B1 = True
 Print "The robot arrives at the incoming product photo spot"
    
@@ -596,7 +613,7 @@ EndIf
  R11 = -32; I3 = bli06; I8 = 3 'Array X Spacing; Array Y Spacing; Array Position Index; Array Rows (X direction)
 Call PalletOffset
 Hand P(bli05), Lefty
-Accel 70, 70
+Accel AccelFoto, AccelFoto   'MOD@@ Guillermo Carrillo - v2.2 opcion 6 (antes: Accel 70, 70)
 Go P(bli05) +X(R12) +Y(R13) /L
 
 'Wait 0.1
@@ -894,6 +911,7 @@ Function TakeFeedDUT_1(bli15 As Integer, bli16 As Integer, bli17 As Integer, blr
 ''''''''''''''''''''''''''''''' Feed product recharging '''''''''''''''''''''''''''''''''''''     
   Off G1Down; Off G2Down; Off G3Down; On G1Up; On G2Up; On G3Up 'Grip 1/2/3 up
   Wait Sw(G1UpSignal) = On; Wait Sw(G2UpSignal) = On; Wait Sw(G3UpSignal) = On 'Wait for gripper 1/2/3 to rise into position
+  Accel AccelTrabajo, AccelTrabajo   'MOD@@ Guillermo Carrillo - v2.2 opcion 7
 '--- Check incoming product pick-up location index ---  
 
   If bli16 < 1 Or bli16 > 42 Then
@@ -918,8 +936,7 @@ Function TakeFeedDUT_1(bli15 As Integer, bli16 As Integer, bli17 As Integer, blr
 
     bli15 = bli15 + bli17
     Integer num(6)
-    'MOD@@ Guillermo Carrillo - v2.1.0 opcion 1: P45 es borrador; no hace falta el archivo
-    'LoadPoints "robot1.pts"
+    'LoadPoints "robot1.pts"   'MOD@@ Guillermo Carrillo - v2.1.0 opcion 1: P45 es borrador
     P45 = P(bli15)
     'SavePoints "robot1.pts"
     num(0) = CX(P(bli15))
@@ -942,24 +959,31 @@ Hand P45, Lefty
 Call GripperClamp(R2)
 Print "Current gripper index="; Print R2
 '---+20mm above the feeding point
-'MOD@@ Guillermo Carrillo - v2.1.0 opcion 4: con AntToma el cilindro empieza a bajar al 95 % del viaje.
-'  GripperDown espera igual el sensor de abajo antes de bajar a la pieza.
-If AntToma = True Then
-   If R2 = 1 Then
-       Go P45 +Z(5) /L !D95; Off G1Up; On G1Down!
-   ElseIf R2 = 2 Then
-       Go P45 +Z(5) /L !D95; Off G2Up; On G2Down!
-   Else
-       Go P45 +Z(5) /L !D95; Off G3Up; On G3Down!
-   EndIf
+'MOD@@ Guillermo Carrillo - v2.2 opcion 8: TomaDirecta = tomar como la Top Assy: Go directo al punto de toma con el
+'  cilindro ARRIBA y luego bajarlo. Mismo punto final; se ahorra el acercamiento de 5 mm, el WaitPos
+'  y la bajada lenta. La ultima parte la hace el cilindro: revisar que no golpee la PCB.
+If TomaDirecta = True Then
+   Go P45 /L
+   Call GripperDown(R2)
 Else
-   Go P45 +Z(5) /L
+   'MOD@@ Guillermo Carrillo - v2.1.0 opcion 4: con AntToma el cilindro empieza a bajar al 95 % del viaje.
+   If AntToma = True Then
+      If R2 = 1 Then
+          Go P45 +Z(5) /L !D95; Off G1Up; On G1Down!
+      ElseIf R2 = 2 Then
+          Go P45 +Z(5) /L !D95; Off G2Up; On G2Down!
+      Else
+          Go P45 +Z(5) /L !D95; Off G3Up; On G3Down!
+      EndIf
+   Else
+      Go P45 +Z(5) /L
+   EndIf
+   WaitPos
+   Call GripperDown(R2)
+   '--- Feed product pick-up point---
+   SpeedS 1000; AccelS 1000, 1000
+   Move P45 /L
 EndIf
-WaitPos
-Call GripperDown(R2)
-'--- Feed product pick-up point---
-SpeedS 1000; AccelS 1000, 1000
-Move P45 /L
 
 If R2 = 1 Then
 	B23 = True
@@ -1106,8 +1130,8 @@ Function PutDischargeDUT_3(bli18 As Integer, bli19 As Integer, bli20 As Integer)
 
 '--- Check discharging position index of discharging products ---
   If bli19 < 1 Or bli19 > 12 Then
+	    S11$ = S2$ + "_E1629_a"; B1 = True   'MOD@@ Guillermo Carrillo - v2.2: antes se borraba el comando y contestaba sin codigo
   		S2$ = ""
-	    S11$ = S2$ + "_E1629_a"; B1 = True
 	    Print "Exception in discharging position index of discharging product"
 	    Pause
 	   S2$ = ""
@@ -1118,8 +1142,8 @@ Function PutDischargeDUT_3(bli18 As Integer, bli19 As Integer, bli20 As Integer)
    
 '---Check the index of discharging gripper for discharging products  ---
   If bli20 < 1 Or bli20 > 3 Then
+	    S11$ = S2$ + "_E1630_a"; B1 = True   'MOD@@ Guillermo Carrillo - v2.2: antes se borraba el comando y contestaba sin codigo
   		S2$ = ""
-	    S11$ = S2$ + "_E1630_a"; B1 = True
 	    Print "Exception in index of discharging gripper of discharging product"
 	    Pause
 	   S2$ = ""
@@ -1184,7 +1208,7 @@ Move P46 /L 'Discharge point of discharge product
 S2$ = ""
 S11$ = "011_OKOK_a"; B1 = True
 Print "Robot reaches the discharging point of discharging product"
-SpeedS 2000; AccelS 1000, 1000
+SpeedS 2000; AccelS 15000, 8000   'MOD@@ Guillermo Carrillo - v2.2: era AccelS 1000, 1000 (descuido del proveedor)
 GoTo Lable_22
 '
 'Lable_21:
@@ -1215,12 +1239,13 @@ Function PutDischargeDUT_2(bli18 As Integer, bli19 As Integer, bli20 As Integer)
 
   Off G1Down; Off G2Down; Off G3Down; On G1Up; On G2Up; On G3Up 'Grip 1/2/3 
   Wait Sw(G1UpSignal) = On; Wait Sw(G2UpSignal) = On; Wait Sw(G3UpSignal) = On 'Wait for gripper 1/2/3 to rise into position
+  Accel AccelTrabajo, AccelTrabajo   'MOD@@ Guillermo Carrillo - v2.2 opcion 7 (la bajada con sensor no cambia)
 
 
 '--- Check discharging position index of discharging products ---
   If bli19 < 1 Or bli19 > 12 Then
+	    S11$ = S2$ + "_E1629_a"; B1 = True   'MOD@@ Guillermo Carrillo - v2.2: antes se borraba el comando y contestaba sin codigo
   		S2$ = ""
-	    S11$ = S2$ + "_E1629_a"; B1 = True
 	    Print "Exception in discharging position index of discharging product"
 	    Pause
 	   S2$ = ""
@@ -1231,8 +1256,8 @@ Function PutDischargeDUT_2(bli18 As Integer, bli19 As Integer, bli20 As Integer)
    
 '---Check the index of discharging gripper for discharging products  ---
   If bli20 < 1 Or bli20 > 3 Then
+	    S11$ = S2$ + "_E1630_a"; B1 = True   'MOD@@ Guillermo Carrillo - v2.2: antes se borraba el comando y contestaba sin codigo
   		S2$ = ""
-	    S11$ = S2$ + "_E1630_a"; B1 = True
 	    Print "Exception in index of discharging gripper of discharging product"
 	    Pause
 	   S2$ = ""
@@ -1246,15 +1271,13 @@ Function PutDischargeDUT_2(bli18 As Integer, bli19 As Integer, bli20 As Integer)
   EndIf
   
   bli18 = bli18 + bli19
-  'MOD@@ Guillermo Carrillo - v2.1.0 opcion 1: P46 es borrador; no hace falta el archivo
-  'LoadPoints "robot1.pts"
+  'LoadPoints "robot1.pts"   'MOD@@ Guillermo Carrillo - v2.1.0 opcion 1: P46 es borrador
   P46 = P(bli18)
   'SavePoints "robot1.pts"
 
 '---Switch tool coordinates---
 Hand P46, Lefty
 'MOD@@ Guillermo Carrillo - v2.1.0 opcion 4: con AntColoca el cilindro empieza a bajar al 95 % del viaje.
-'  GripperDown espera igual el sensor de abajo antes de revisar la presion.
 If AntColoca = True Then
    If R2 = 1 Then
        Go P46 +Z(3) /L !D95; Off G1Up; On G1Down!
@@ -1283,7 +1306,6 @@ EndIf
 '---Discharging point for outgoing products---
 
 'MOD@@ Guillermo Carrillo - v2.1.0 opcion 2: el robot ya esta en P46 +Z(3): ese Move no movia nada.
-'  La revision de la presion queda igual, con 0.05 s de espera en lugar de 0.1 s.
 'Move P46 +Z(3) /L Till Sw(75 + R2) = On  '+4.5mm above the discharge point of the discharged product 
 'Wait 0.1
 Wait 0.05
@@ -1313,7 +1335,7 @@ Call GripperUp(R2)
 S2$ = ""
 S11$ = "011_OKOK_a"; B1 = True
 Print "Robot reaches the discharging point of discharging product"
-SpeedS 2000; AccelS 1000, 1000
+SpeedS 2000; AccelS 15000, 8000   'MOD@@ Guillermo Carrillo - v2.2: era AccelS 1000, 1000 (descuido del proveedor)
 GoTo Lable_22
 
 Lable_21:
@@ -1367,8 +1389,8 @@ Function PutDischargeDUT_1(bli18 As Integer, bli19 As Integer, bli20 As Integer,
 '--- Check discharging position index of discharging products ---
 Lable_14:
   If bli19 < 1 Or bli19 > 12 Then
+	    S11$ = S2$ + "_E1629_a"; B1 = True   'MOD@@ Guillermo Carrillo - v2.2: antes se borraba el comando y contestaba sin codigo
   		S2$ = ""
-	    S11$ = S2$ + "_E1629_a"; B1 = True
 	    Print "Exception in discharging position index of discharging product"
 	    Pause
 	    Wait 2
@@ -1380,8 +1402,8 @@ Lable_14:
 '---Check the index of discharging gripper for discharging products  ---
 Lable_15:
   If bli20 < 1 Or bli20 > 3 Then
+	    S11$ = S2$ + "_E1630_a"; B1 = True   'MOD@@ Guillermo Carrillo - v2.2: antes se borraba el comando y contestaba sin codigo
   		S2$ = ""
-	    S11$ = S2$ + "_E1630_a"; B1 = True
 	    Print "Exception in index of discharging gripper of discharging product"
 	    Pause
 	    Wait 2
@@ -1515,8 +1537,7 @@ Function GetCurrentPosition_1
 
 pos_1:
   I21 = 0
-  'MOD@@ Guillermo Carrillo - v2.1.0 opcion 1: P99 es borrador; no hace falta el archivo
-  'LoadPoints "robot1.pts"
+  'LoadPoints "robot1.pts"   'MOD@@ Guillermo Carrillo - v2.1.0 opcion 1: P99 es borrador
   P99 = CurPos
   'SavePoints "robot1.pts"
 R15 = CX(P99)
@@ -1740,8 +1761,8 @@ Lable_17:
   If bli23 < 900 Or bli23 > 999 Then
   	 Wait 2
      If bli23 < 900 Or bli23 > 999 Then
+	    S11$ = S2$ + "_E054_a"; B1 = True   'MOD@@ Guillermo Carrillo - v2.2: antes se borraba el comando y contestaba sin codigo
         S2$ = ""
-	    S11$ = S2$ + "_E054_a"; B1 = True
 	    Print "Record robot position index exception"
 	    Pause
 	    GoTo Lable_17
